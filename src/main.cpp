@@ -7,9 +7,12 @@
 #define SERIAL_GPS_BAUD 9600
 #define SERIAL_BAUD 115200
 
+#define TINY_GSM_MODEM_SIM900
+
 #include <Arduino.h>
 #include <SoftwareSerial.h>
 #include <TinyGPS++.h>
+#include <TinyGsmClient.h>
 
 void panicButtonPressed();
 void panicHandling();
@@ -22,10 +25,19 @@ int panicMode = 0; // tracks the current state of panic mode; false by default (
 float gps_lat = 0.0;
 float gps_lng = 0.0;
 
+const char APN[] = "wholesale";
+const char USER[] = "";
+const char PASS[] = "";
+
 // Global Object Declarations
-// SoftwareSerial SerialGSM(SERIAL_GSM_RX, SERIAL_GSM_TX); // RX, TX
+SoftwareSerial SerialGSM(SERIAL_GSM_RX, SERIAL_GSM_TX); // RX, TX
 SoftwareSerial SerialGPS(SERIAL_GPS_RX, SERIAL_GPS_TX); // RX, TX
 TinyGPSPlus gps;
+TinyGsm modem(&SerialGSM);
+TinyGsmClient client(&modem);
+
+const char[] = "rpi.anthony-nunez.me";
+const int TCP_PORT = 5911;
 
 void setup() {
     // put your setup code here, to run once:
@@ -38,11 +50,14 @@ void setup() {
     Serial.println("Serial devices are setup.");
     blinkLED(13, 5, 250, 500);
 
-    // SerialGPS.listen();
-    // GPS.sendCommand("$PGCMD,33,0*6D"); // Turn Off GPS Antenna Update
-    // GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA); // Tell GPS we want only $GPRMC and $GPGGA NMEA sentences
-    // GPS.sendCommand(PMTK_SET_NMEA_UPDATE_1HZ);   // 1 Hz update rate
-    // delay(1000);  // Pause
+    // Restart takes quite some time
+    // To skip it, call init() instead of restart()
+    Serial.println(F("Initializing modem..."));
+    modem.restart();
+
+    String modemInfo = modem.getModemInfo();
+    Serial.print("Modem: ");
+    Serial.println(modemInfo);
 
   	// pin setup
   	pinMode(PIN_PANIC_BTN, INPUT);
@@ -50,18 +65,68 @@ void setup() {
 }
 
 void loop() {
-    // put your main code here, to run repeatedly:
-    if(digitalRead(PIN_PANIC_BTN) && !panicMode){
-        panicButtonPressed();
-    }
-	  if(panicMode){
-        panicHandling();
-    }
-    if(SerialGPS.available() > 0 ){
-      if(gps.encode(SerialGPS.read())) displayGPSInfo();
-    }
+    // // put your main code here, to run repeatedly:
+    // if(digitalRead(PIN_PANIC_BTN) && !panicMode){
+    //     panicButtonPressed();
+    // }
+	  // if(panicMode){
+    //     panicHandling();
+    // }
+    // if(SerialGPS.available() > 0 ){
+    //   if(gps.encode(SerialGPS.read())) displayGPSInfo();
+    // }
+    //
+    // delay(500);
 
-    delay(500);
+    Serial.print(F("Waiting for network..."));
+    if (!modem.waitForNetwork()) {
+      Serial.println(" fail");
+      delay(10000);
+      return;
+    }
+    Serial.println(" OK");
+
+    Serial.print(F("Connecting to "));
+    Serial.print(apn);
+    if (!modem.gprsConnect(apn, user, pass)) {
+      Serial.println(" fail");
+      delay(10000);
+      return;
+    }
+    Serial.println(" OK");
+
+    Serial.print(F("Connecting to "));
+    Serial.print(server);
+    if (!client.connect(server, port)) {
+      Serial.println(" fail");
+      delay(10000);
+      return;
+    }
+    Serial.println(" OK");
+
+    // Make a HTTP GET request:
+    client.print(String("GET ") + resource + " HTTP/1.0\r\n");
+    client.print(String("Host: ") + server + "\r\n");
+    client.print("Connection: close\r\n\r\n");
+
+    // unsigned long timeout = millis();
+    // while (client.connected() && millis() - timeout < 10000L) {
+    //   // Print available data
+    //   while (client.available()) {
+    //     char c = client.read();
+    //     Serial.print(c);
+    //     timeout = millis();
+    //   }
+    // }
+    Serial.println();
+
+    client.stop();
+    Serial.println("Server disconnected");
+
+    modem.gprsDisconnect();
+    Serial.println("GPRS disconnected");
+
+    blinkLED(13, 10, 1000, 1000);
 }
 
 // gets called when the panic button is pressed
