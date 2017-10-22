@@ -5,6 +5,7 @@
 #define SERIAL_GPS_RX 2 // GPS RX pin, blue cable
 #define SERIAL_GPS_TX 3 // GPS TX pin, yellow cable
 #define SERIAL_GPS_BAUD 9600
+#define SERIAL_GSM_BAUD 115200
 #define SERIAL_BAUD 115200
 
 #define TINY_GSM_MODEM_SIM900
@@ -33,10 +34,10 @@ const char PASS[] = "";
 SoftwareSerial SerialGSM(SERIAL_GSM_RX, SERIAL_GSM_TX); // RX, TX
 SoftwareSerial SerialGPS(SERIAL_GPS_RX, SERIAL_GPS_TX); // RX, TX
 TinyGPSPlus gps;
-TinyGsm modem(&SerialGSM);
-TinyGsmClient client(&modem);
+TinyGsm modem(SerialGSM);
+TinyGsmClient client(modem);
 
-const char[] = "rpi.anthony-nunez.me";
+const char SERVER[] = "rpi.anthony-nunez.me";
 const int TCP_PORT = 5911;
 
 void setup() {
@@ -45,7 +46,11 @@ void setup() {
   	Serial.begin(SERIAL_BAUD); // sets up the Serial library for debugging @ 9600 baud
     delay(200);
     SerialGPS.begin(SERIAL_GPS_BAUD); // sets up the GPS serial connection @ 9600 baud
+    delay(200);
+    SerialGSM.begin(SERIAL_GSM_BAUD);
     delay(1000);
+
+    SerialGSM.listen();
 
     Serial.println("Serial devices are setup.");
     blinkLED(13, 5, 250, 500);
@@ -55,9 +60,9 @@ void setup() {
     Serial.println(F("Initializing modem..."));
     modem.restart();
 
-    String modemInfo = modem.getModemInfo();
-    Serial.print("Modem: ");
-    Serial.println(modemInfo);
+    // String modemInfo = modem.getModemInfo();
+    // Serial.print("Modem: ");
+    // Serial.println(modemInfo);
 
   	// pin setup
   	pinMode(PIN_PANIC_BTN, INPUT);
@@ -87,8 +92,8 @@ void loop() {
     Serial.println(" OK");
 
     Serial.print(F("Connecting to "));
-    Serial.print(apn);
-    if (!modem.gprsConnect(apn, user, pass)) {
+    Serial.print(APN);
+    if (!modem.gprsConnect(APN, USER, PASS)) {
       Serial.println(" fail");
       delay(10000);
       return;
@@ -96,8 +101,8 @@ void loop() {
     Serial.println(" OK");
 
     Serial.print(F("Connecting to "));
-    Serial.print(server);
-    if (!client.connect(server, port)) {
+    Serial.print(SERVER);
+    if (!client.connect(SERVER, TCP_PORT)) {
       Serial.println(" fail");
       delay(10000);
       return;
@@ -105,8 +110,8 @@ void loop() {
     Serial.println(" OK");
 
     // Make a HTTP GET request:
-    client.print(String("GET ") + resource + " HTTP/1.0\r\n");
-    client.print(String("Host: ") + server + "\r\n");
+    // client.print(String("GET ") + resource + " HTTP/1.0\r\n");
+    client.print(String("Host: ") + SERVER + "\r\n");
     client.print("Connection: close\r\n\r\n");
 
     // unsigned long timeout = millis();
