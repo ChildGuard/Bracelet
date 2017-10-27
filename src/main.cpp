@@ -5,8 +5,10 @@
 #define SERIAL_GPS_RX 2 // GPS RX pin, blue cable
 #define SERIAL_GPS_TX 3 // GPS TX pin, yellow cable
 #define SERIAL_GPS_BAUD 9600
-#define SERIAL_GSM_BAUD 115200
-#define SERIAL_BAUD 115200
+#define SERIAL_GSM_BAUD 9600
+#define SERIAL_BAUD 9600
+#define SERVER_HOST "childguard.anthony-nunez.me"
+#define SERVER_PORT 5916
 
 #define TINY_GSM_MODEM_SIM900
 
@@ -17,6 +19,8 @@
 
 void panicButtonPressed();
 void panicHandling();
+bool setupGSM(); // returns true if successful, false if unsuccessful
+String sendAT(String);
 void displayGPSInfo();
 void blinkLED(int, int, int, int);
 
@@ -37,8 +41,8 @@ TinyGPSPlus gps;
 TinyGsm modem(SerialGSM);
 TinyGsmClient client(modem);
 
-const char SERVER[] = "rpi.anthony-nunez.me";
-const int TCP_PORT = 5911;
+const char SERVER[] = "73.244.68.162";
+const int TCP_PORT = 5916;
 
 void setup() {
     // put your setup code here, to run once:
@@ -53,20 +57,16 @@ void setup() {
     SerialGSM.listen();
 
     Serial.println("Serial devices are setup.");
-    blinkLED(13, 5, 250, 500);
-
-    // Restart takes quite some time
-    // To skip it, call init() instead of restart()
-    Serial.println(F("Initializing modem..."));
-    modem.restart();
-
-    // String modemInfo = modem.getModemInfo();
-    // Serial.print("Modem: ");
-    // Serial.println(modemInfo);
+    //blinkLED(13, 5, 250, 500);
 
   	// pin setup
   	pinMode(PIN_PANIC_BTN, INPUT);
   	pinMode(PIN_PANIC_LED, OUTPUT);
+
+    if(setupGSM()) Serial.println("GSM serial is connected! :)");
+    else Serial.println("GSM serial failed to connect. :(");
+
+    delay(1000);
 }
 
 void loop() {
@@ -82,56 +82,6 @@ void loop() {
     // }
     //
     // delay(500);
-
-    Serial.print(F("Waiting for network..."));
-    if (!modem.waitForNetwork()) {
-      Serial.println(" fail");
-      delay(10000);
-      return;
-    }
-    Serial.println(" OK");
-
-    Serial.print(F("Connecting to "));
-    Serial.print(APN);
-    if (!modem.gprsConnect(APN, USER, PASS)) {
-      Serial.println(" fail");
-      delay(10000);
-      return;
-    }
-    Serial.println(" OK");
-
-    Serial.print(F("Connecting to "));
-    Serial.print(SERVER);
-    if (!client.connect(SERVER, TCP_PORT)) {
-      Serial.println(" fail");
-      delay(10000);
-      return;
-    }
-    Serial.println(" OK");
-
-    // Make a HTTP GET request:
-    // client.print(String("GET ") + resource + " HTTP/1.0\r\n");
-    client.print(String("Host: ") + SERVER + "\r\n");
-    client.print("Connection: close\r\n\r\n");
-
-    // unsigned long timeout = millis();
-    // while (client.connected() && millis() - timeout < 10000L) {
-    //   // Print available data
-    //   while (client.available()) {
-    //     char c = client.read();
-    //     Serial.print(c);
-    //     timeout = millis();
-    //   }
-    // }
-    Serial.println();
-
-    client.stop();
-    Serial.println("Server disconnected");
-
-    modem.gprsDisconnect();
-    Serial.println("GPRS disconnected");
-
-    blinkLED(13, 10, 1000, 1000);
 }
 
 // gets called when the panic button is pressed
@@ -161,6 +111,29 @@ void panicHandling(){
   Serial.println("Panic mode off!");
 	panicMode = 0;
 	digitalWrite(PIN_PANIC_LED, LOW);
+}
+
+bool setupGSM(){
+  String serialIn = "";
+
+  if(sendAT("AT") != "OK") return false;
+
+  return true;
+}
+
+String sendAT(String command){
+  String serialIn = "";
+
+  if(!SerialGSM.isListening()) SerialGSM.listen();
+
+  SerialGSM.println(command);
+  delay(250);
+
+  while(SerialGSM.available() > 0) serialIn += (char)SerialGSM.read();
+
+  serialIn = serialIn.substring(2, serialIn.length() - 2);
+
+  return serialIn;
 }
 
 void displayGPSInfo(){
