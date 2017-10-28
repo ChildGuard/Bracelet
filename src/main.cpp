@@ -107,7 +107,11 @@ void panicHandling(){
 bool setupGSM(){
   String serialIn = "";
 
-  if(sendAT("AT") != "OK") return false;
+  if(sendAT("AT") == "ERROR") return false; // Check if module is up
+
+  // EDIT THESE TO CONSIDER THAT THE SETTINGS MIGHT ALREADY BE SET IN MEMORY!!!
+  if(sendAT("AT+CSTT=\"wholesale\"") == "ERROR") return false; // Set APN
+  if(sendAT("AT+CIFSR") == "ERROR") return false; // Get local IP address
 
   return true;
 }
@@ -117,12 +121,15 @@ String sendAT(String command){
 
   if(!SerialGSM.isListening()) SerialGSM.listen();
 
+  Serial.print(command);
+  Serial.print("... ");
   SerialGSM.println(command);
   delay(250);
 
   while(SerialGSM.available() > 0) serialIn += (char)SerialGSM.read();
 
   serialIn = serialIn.substring(2, serialIn.length() - 2);
+  Serial.println(serialIn);
 
   return serialIn;
 }
