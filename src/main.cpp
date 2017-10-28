@@ -1,17 +1,32 @@
-#include "./modules/GSM.h"
-#include "./modules/GPS.h"
-#include "Panic.h"
+#define PIN_PANIC_BTN 9 // the actual panic button
+#define PIN_PANIC_LED 13 // the led which shows if panic mode is on or not; on-board LED
+#define SERIAL_GSM_RX 5 // GSM RX pin,
+#define SERIAL_GSM_TX 6 // GSM TX pin,
+#define SERIAL_GPS_RX 2 // GPS RX pin, blue cable
+#define SERIAL_GPS_TX 3 // GPS TX pin, yellow cable
+#define SERIAL_GPS_BAUD 9600
+#define SERIAL_GSM_BAUD 9600
+#define SERIAL_BAUD 9600
+#define SERVER_HOST "childguard.anthony-nunez.me"
+#define SERVER_PORT 5916
+
+#define TINY_GSM_MODEM_SIM900
+
 #include <Arduino.h>
 #include <SoftwareSerial.h>
 #include <TinyGPS++.h>
+#include <TinyGsmClient.h>
 
-#define SERIAL_BAUD 9600
-
+void panicButtonPressed();
+void panicHandling();
+bool setupGSM(); // returns true if successful, false if unsuccessful
+String sendAT(String);
 void displayGPSInfo();
 void blinkLED(int, int, int, int);
 
 // Global Variables
-
+int triggerInt = 5; // trigger interval for activating panic mode (in seconds)
+int panicMode = 0; // tracks the current state of panic mode; false by default (0)
 float gps_lat = 0.0;
 float gps_lng = 0.0;
 
@@ -20,8 +35,11 @@ const char USER[] = "";
 const char PASS[] = "";
 
 // Global Object Declarations
+SoftwareSerial SerialGSM(SERIAL_GSM_RX, SERIAL_GSM_TX); // RX, TX
 SoftwareSerial SerialGPS(SERIAL_GPS_RX, SERIAL_GPS_TX); // RX, TX
 TinyGPSPlus gps;
+TinyGsm modem(SerialGSM);
+TinyGsmClient client(modem);
 
 const char SERVER[] = "73.244.68.162";
 const int TCP_PORT = 5916;
@@ -64,12 +82,59 @@ void loop() {
     // }
     //
     // delay(500);
-
-    Serial.println("Done.");
-    while(true); // Do nothing forever more...
 }
 
+// gets called when the panic button is pressed
+void panicButtonPressed(){
+  int seconds = 0;
 
+	while(digitalRead(PIN_PANIC_BTN) && seconds <= triggerInt){
+		delay(500);
+		digitalWrite(PIN_PANIC_LED, HIGH);
+		delay(500);
+		digitalWrite(PIN_PANIC_LED, LOW);
+		seconds++;
+		Serial.print("Button held for ");
+		Serial.print(seconds);
+		Serial.println(" seconds");
+
+		if(seconds == triggerInt) panicMode = 1;
+	}
+}
+
+// gets called when the panic mode is activated
+void panicHandling(){
+	Serial.println("Panic mode active!");
+	digitalWrite(PIN_PANIC_LED, HIGH);
+	delay(5000);
+
+  Serial.println("Panic mode off!");
+	panicMode = 0;
+	digitalWrite(PIN_PANIC_LED, LOW);
+}
+
+bool setupGSM(){
+  String serialIn = "";
+
+  if(sendAT("AT") != "OK") return false;
+
+  return true;
+}
+
+String sendAT(String command){
+  String serialIn = "";
+
+  if(!SerialGSM.isListening()) SerialGSM.listen();
+
+  SerialGSM.println(command);
+  delay(250);
+
+  while(SerialGSM.available() > 0) serialIn += (char)SerialGSM.read();
+
+  serialIn = serialIn.substring(2, serialIn.length() - 2);
+
+  return serialIn;
+}
 
 void displayGPSInfo(){
     Serial.print("Location: ");
