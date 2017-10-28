@@ -10,12 +10,9 @@
 #define SERVER_HOST "childguard.anthony-nunez.me"
 #define SERVER_PORT 5916
 
-#define TINY_GSM_MODEM_SIM900
-
 #include <Arduino.h>
 #include <SoftwareSerial.h>
 #include <TinyGPS++.h>
-#include <TinyGsmClient.h>
 
 void panicButtonPressed();
 void panicHandling();
@@ -30,16 +27,10 @@ int panicMode = 0; // tracks the current state of panic mode; false by default (
 float gps_lat = 0.0;
 float gps_lng = 0.0;
 
-const char APN[] = "wholesale";
-const char USER[] = "";
-const char PASS[] = "";
-
 // Global Object Declarations
 SoftwareSerial SerialGSM(SERIAL_GSM_RX, SERIAL_GSM_TX); // RX, TX
 SoftwareSerial SerialGPS(SERIAL_GPS_RX, SERIAL_GPS_TX); // RX, TX
 TinyGPSPlus gps;
-TinyGsm modem(SerialGSM);
-TinyGsmClient client(modem);
 
 const char SERVER[] = "73.244.68.162";
 const int TCP_PORT = 5916;
