@@ -22,6 +22,7 @@ void connectTCP();
 void disconnectTCP();
 void sendMessage(String);
 String sendAT(String);
+static void smartDelay(unsigned long);
 void getGPSInfo();
 void blinkLED(int, int, int, int);
 
@@ -36,8 +37,10 @@ SoftwareSerial SerialGSM(SERIAL_GSM_RX, SERIAL_GSM_TX); // RX, TX
 SoftwareSerial SerialGPS(SERIAL_GPS_RX, SERIAL_GPS_TX); // RX, TX
 TinyGPSPlus gps;
 
-const char SERVER[] = "73.244.68.162";
+const char SERVER[] = "childguard.anthony-nunez.me";
 const int TCP_PORT = 5916;
+
+char charRead = ' ';
 
 void setup() {
     // put your setup code here, to run once:
@@ -58,44 +61,48 @@ void setup() {
   	pinMode(PIN_PANIC_BTN, INPUT);
   	pinMode(PIN_PANIC_LED, OUTPUT);
 
-    // if(setupGSM()) Serial.println("GSM serial is connected! :)");
-    // else Serial.println("GSM serial failed to connect. :(");
+    if(setupGSM()) Serial.println("GSM serial is connected! :)");
+    else Serial.println("GSM serial failed to connect. :(");
+
+    connectTCP();
+    delay(5000);
+
+    // int i;
+    // SerialGPS.listen();
+    // delay(3000);
+    // for(i = 0; i < 5; i++){
+    //   Serial.print("Iteration ");
+    //   Serial.println(i);
+    //   while(SerialGPS.available() > 0){
+    //     if(gps.encode(SerialGPS.read())) getGPSInfo();
+    //   }
     //
-    // connectTCP();
-    // delay(10000);
-
-    int i;
-    SerialGPS.listen();
-    delay(3000);
-    for(i = 0; i < 5; i++){
-      Serial.print("Iteration ");
-      Serial.println(i);
-      // while(SerialGPS.available() > 0){
-      //   if(gps.encode(SerialGPS.read())) getGPSInfo();
-      // }
-
-      delay(3000);
-    }
-
-    delay(3000);
+    //   delay(3000);
+    // }
+    //
+    // delay(3000);
+    // Serial.println("Disconnecting from TCP...");
     // disconnectTCP();
 
     delay(1000);
+    Serial.println("Going into loop...");
 }
 
 void loop() {
     // // put your main code here, to run repeatedly:
-    // if(digitalRead(PIN_PANIC_BTN) && !panicMode){
-    //     panicButtonPressed();
-    // }
-	  // if(panicMode){
-    //     panicHandling();
-    // }
-    // if(SerialGPS.available() > 0 ){
-    //   if(gps.encode(SerialGPS.read())) displayGPSInfo();
-    // }
+    if(digitalRead(PIN_PANIC_BTN) && !panicMode){
+        panicButtonPressed();
+    }
+	  if(panicMode){
+        panicHandling();
+    }
+    // getGPSInfo();
     //
     // delay(500);
+
+    // if(!SerialGPS.isListening()) SerialGPS.listen();
+    // smartDelay(10000);
+    // getGPSInfo();
 }
 
 // gets called when the panic button is pressed
@@ -120,7 +127,21 @@ void panicButtonPressed(){
 void panicHandling(){
 	Serial.println("Panic mode active!");
 	digitalWrite(PIN_PANIC_LED, HIGH);
-	delay(5000);
+
+  smartDelay(5 * 1000);
+  getGPSInfo();
+
+  String locMsg = "$GPSLOC=";
+  locMsg += gps_lat;
+  locMsg += ",";
+  locMsg += gps_lng;
+  locMsg += "!";
+
+  Serial.print("Sending message: ");
+  Serial.println(locMsg);
+  sendMessage(locMsg);
+
+  // delay(5000);
 
   Serial.println("Panic mode off!");
 	panicMode = 0;
@@ -138,14 +159,15 @@ bool setupGSM(){
   returnString = sendAT("AT+CSTT?");
   Serial.print("Comparison check: ");
   Serial.println(returnString.startsWith(test, 2));
-  if(!returnString.startsWith(test, 2)){
-    if(sendAT("AT+CSTT=\"wholesale\"") == "\r\nERROR\r\n") return false;
-  }
+  // if(!returnString.startsWith(test, 2)){
+  //   if(sendAT("AT+CSTT=\"wholesale\"") == "\r\nERROR\r\n") return false;
+  // }
+  sendAT("AT+CSTT=\"wholesale\"");
   // if(sendAT("AT+CIICR=?") != "\r\nOK\r\n"){
     sendAT("AT+CIICR");
   // }
-  if(sendAT("AT+CIFSR") == "\r\nERROR\r\n") return false;
-
+  //if(sendAT("AT+CIFSR") == "\r\nERROR\r\n") return false;
+  sendAT("AT+CIFSR");
   return true;
 }
 
@@ -158,7 +180,7 @@ void connectTCP(){
 
   sendAT(command);
 
-  delay(5000);
+  while(SerialGSM.available() < 1);
 
   while(SerialGSM.available() > 0) Serial.write(SerialGSM.read());
 }
@@ -196,16 +218,24 @@ String sendAT(String command){
   return serialIn;
 }
 
-void getGPSInfo(){
+static void smartDelay(unsigned long ms)
+{
+  unsigned long start = millis();
+  do
+  {
     if(!SerialGPS.isListening()) SerialGPS.listen();
+    delay(100);
+    while (SerialGPS.available())
+      gps.encode(SerialGPS.read());
+  } while (millis() - start < ms);
+}
 
-    delay(500);
-
-    Serial.print("Location: ");
+void getGPSInfo(){
     if(gps.location.isValid()){
         gps_lat = gps.location.lat();
         gps_lng = gps.location.lng();
 
+        Serial.print("Location: ");
         Serial.print(gps_lat, 8);
         Serial.print(',');
         Serial.println(gps_lng, 8);
