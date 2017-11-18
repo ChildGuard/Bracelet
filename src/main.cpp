@@ -132,10 +132,11 @@ void panicHandling(){
   getGPSInfo();
 
   String locMsg = "$GPSLOC=";
+  locMsg += "{\"lat\":";
   locMsg += String(gps_lat,6);
-  locMsg += ",";
+  locMsg += ",\"lng\":";
   locMsg += String(gps_lng,6);
-  locMsg += "!";
+  locMsg += "}!";
 
   Serial.print("Sending message: ");
   Serial.println(locMsg);
