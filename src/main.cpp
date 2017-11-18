@@ -7,8 +7,8 @@
 #define SERIAL_GPS_BAUD 9600
 #define SERIAL_GSM_BAUD 9600
 #define SERIAL_BAUD 9600
-#define SERVER_HOST "childguard.anthony-nunez.me"
-#define SERVER_PORT 5916
+// #define SERVER_HOST "childguard.anthony-nunez.me"
+// #define SERVER_PORT 5905
 #define READGSM while(SerialGSM.available() > 0) Serial.write(SerialGSM.read())
 
 #include <Arduino.h>
@@ -132,9 +132,9 @@ void panicHandling(){
   getGPSInfo();
 
   String locMsg = "$GPSLOC=";
-  locMsg += gps_lat;
+  locMsg += String(gps_lat,6);
   locMsg += ",";
-  locMsg += gps_lng;
+  locMsg += String(gps_lng,6);
   locMsg += "!";
 
   Serial.print("Sending message: ");
@@ -178,11 +178,7 @@ void connectTCP(){
   command += TCP_PORT;
   command += "\"";
 
-  sendAT(command);
-
-  while(SerialGSM.available() < 1);
-
-  while(SerialGSM.available() > 0) Serial.write(SerialGSM.read());
+  Serial.println(sendAT(command));
 }
 
 void disconnectTCP(){
@@ -196,6 +192,9 @@ void sendMessage(String message){
   delay(250);
   SerialGSM.print(message);
   SerialGSM.print((char)0x1a);
+
+  while(SerialGSM.available() < 1);
+
   READGSM;
   delay(500);
 }
@@ -213,7 +212,7 @@ String sendAT(String command){
   while(SerialGSM.available() > 0) serialIn += (char)SerialGSM.read();
 
   //serialIn = serialIn.substring(2, serialIn.length() - 2);
-  Serial.println(serialIn);
+  //Serial.println(serialIn);
 
   return serialIn;
 }
