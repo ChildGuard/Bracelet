@@ -42,7 +42,7 @@ SoftwareSerial SerialGPS(SERIAL_GPS_RX, SERIAL_GPS_TX); // RX, TX
 TinyGPSPlus gps;
 
 const char SERVER[] = "childguard.anthony-nunez.me";
-const int TCP_PORT = 5916;
+const int TCP_PORT = 5911;
 
 char charRead = ' ';
 
@@ -104,6 +104,8 @@ void loop() {
       SerialGPS.listen();
       smartDelay(1000);
       getGPSInfo();
+      Serial.print("Current Minute: ");
+      Serial.println(currentMinute);
     }
     if(currentMinute != lastReport){
       if((currentMinute > lastReport) && (currentMinute - lastReport >= reportInterval)){
@@ -147,8 +149,6 @@ void panicButtonPressed(){
 void panicHandling(){
 	Serial.println("Panic mode active!");
 	digitalWrite(PIN_PANIC_LED, HIGH);
-
-
 
   // delay(5000);
 
@@ -266,12 +266,13 @@ void sendLoc(){
   smartDelay(5 * 1000);
   getGPSInfo();
 
-  String locMsg = "$GPSLOC=";
-  locMsg += "{\"lat\":";
+  String locMsg = "{\"lat\":";
   locMsg += String(gps_lat,6);
   locMsg += ",\"lng\":";
   locMsg += String(gps_lng,6);
-  locMsg += "}!";
+  locMsg += ",\"panic\":";
+  locMsg += String(panicMode);
+  locMsg += "}";
 
   Serial.print("Sending message: ");
   Serial.println(locMsg);
