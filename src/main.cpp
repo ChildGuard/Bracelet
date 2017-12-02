@@ -24,6 +24,7 @@ void sendMessage(String);
 String sendAT(String);
 static void smartDelay(unsigned long);
 void getGPSInfo();
+void sendLoc();
 void blinkLED(int, int, int, int);
 
 // Global Variables
@@ -31,6 +32,9 @@ int triggerInt = 5; // trigger interval for activating panic mode (in seconds)
 int panicMode = 0; // tracks the current state of panic mode; false by default (0)
 float gps_lat = 0.0;
 float gps_lng = 0.0;
+int currentMinute = 0; // contains the current UTS minute of the time
+int lastReport = 0; // contains the last UTS minute at which a report was sent out
+int reportInterval = 1; // reporting interval in minutes; default is 1 minute
 
 // Global Object Declarations
 SoftwareSerial SerialGSM(SERIAL_GSM_RX, SERIAL_GSM_TX); // RX, TX
@@ -96,6 +100,22 @@ void loop() {
 	  if(panicMode){
         panicHandling();
     }
+    if(!SerialGPS.isListening()){
+      SerialGPS.listen();
+      smartDelay(1000);
+      getGPSInfo();
+    }
+    if(currentMinute != lastReport){
+      if((currentMinute > lastReport) && (currentMinute - lastReport >= reportInterval)){
+        lastReport = currentMinute;
+        sendLoc();
+      }
+      else if((currentMinute + 60) - lastReport >= reportInterval){
+        lastReport = currentMinute;
+        sendLoc();
+      }
+
+    }
     // getGPSInfo();
     //
     // delay(500);
@@ -128,19 +148,7 @@ void panicHandling(){
 	Serial.println("Panic mode active!");
 	digitalWrite(PIN_PANIC_LED, HIGH);
 
-  smartDelay(5 * 1000);
-  getGPSInfo();
 
-  String locMsg = "$GPSLOC=";
-  locMsg += "{\"lat\":";
-  locMsg += String(gps_lat,6);
-  locMsg += ",\"lng\":";
-  locMsg += String(gps_lng,6);
-  locMsg += "}!";
-
-  Serial.print("Sending message: ");
-  Serial.println(locMsg);
-  sendMessage(locMsg);
 
   // delay(5000);
 
@@ -245,23 +253,29 @@ void getGPSInfo(){
     }
 
     // Serial.print(F("  Date/Time: "));
-    // if (gps.date.isValid())
-    // {
-    //   Serial.print(gps.date.month());
-    //   Serial.print(F("/"));
-    //   Serial.print(gps.date.day());
-    //   Serial.print(F("/"));
-    //   Serial.print(gps.date.year());
-    //   Serial.print(F("; "));
-    //   Serial.print(gps.time.hour());
-    //   Serial.print(F(":"));
-    //   Serial.print(gps.time.minute());
-    //   Serial.print(F(":"));
-    //   Serial.print(gps.time.second());
-    // }
+    if (gps.date.isValid())
+    {
+      currentMinute = gps.time.minute();
+    }
 
     // Serial.println();
     // delay(3000);
+}
+
+void sendLoc(){
+  smartDelay(5 * 1000);
+  getGPSInfo();
+
+  String locMsg = "$GPSLOC=";
+  locMsg += "{\"lat\":";
+  locMsg += String(gps_lat,6);
+  locMsg += ",\"lng\":";
+  locMsg += String(gps_lng,6);
+  locMsg += "}!";
+
+  Serial.print("Sending message: ");
+  Serial.println(locMsg);
+  sendMessage(locMsg);
 }
 
 void blinkLED(int pin, int numBlinks, int durationOn, int durationOff){
