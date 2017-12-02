@@ -41,8 +41,8 @@ SoftwareSerial SerialGSM(SERIAL_GSM_RX, SERIAL_GSM_TX); // RX, TX
 SoftwareSerial SerialGPS(SERIAL_GPS_RX, SERIAL_GPS_TX); // RX, TX
 TinyGPSPlus gps;
 
-const char SERVER[] = "childguard.anthony-nunez.me";
-const int TCP_PORT = 5911;
+const char SERVER[] = "138.197.24.219";
+const int TCP_PORT = 5911; // 5916 for SocketTest on Local Machine, 5911 for ChildGuard Server NET Socket
 
 char charRead = ' ';
 
@@ -107,17 +107,16 @@ void loop() {
       Serial.print("Current Minute: ");
       Serial.println(currentMinute);
     }
-    if(currentMinute != lastReport){
-      if((currentMinute > lastReport) && (currentMinute - lastReport >= reportInterval)){
-        lastReport = currentMinute;
-        sendLoc();
-      }
-      else if((currentMinute + 60) - lastReport >= reportInterval){
-        lastReport = currentMinute;
-        sendLoc();
-      }
-
-    }
+    // if(currentMinute != lastReport){
+    //   if((currentMinute > lastReport) && (currentMinute - lastReport >= reportInterval)){
+    //     lastReport = currentMinute;
+    //     sendLoc();
+    //   }
+    //   else if((currentMinute + 60) - lastReport >= reportInterval){
+    //     lastReport = currentMinute;
+    //     sendLoc();
+    //   }
+    // }
     // getGPSInfo();
     //
     // delay(500);
