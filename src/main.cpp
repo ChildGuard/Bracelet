@@ -150,6 +150,7 @@ void panicHandling(){
 	digitalWrite(PIN_PANIC_LED, HIGH);
 
   // delay(5000);
+  sendLoc();
 
   Serial.println("Panic mode off!");
 	panicMode = 0;
@@ -187,6 +188,10 @@ void connectTCP(){
   command += "\"";
 
   Serial.println(sendAT(command));
+
+  int timeout = millis();
+  while(!SerialGSM.available() && millis() - timeout < 5000){};
+  while(SerialGSM.available()) Serial.write(SerialGSM.read());
 }
 
 void disconnectTCP(){
