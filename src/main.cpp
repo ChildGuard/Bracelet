@@ -41,6 +41,9 @@ SoftwareSerial SerialGSM(SERIAL_GSM_RX, SERIAL_GSM_TX); // RX, TX
 SoftwareSerial SerialGPS(SERIAL_GPS_RX, SERIAL_GPS_TX); // RX, TX
 TinyGPSPlus gps;
 
+// 138.197.24.219 Digital Ocean Droplet
+// 73.244.68.162 Private Network (Ports 5916 for SocketTest & 5911 for VM when active only)
+
 const char SERVER[] = "138.197.24.219";
 const int TCP_PORT = 5911; // 5916 for SocketTest on Local Machine, 5911 for ChildGuard Server NET Socket
 
@@ -71,6 +74,9 @@ void setup() {
     connectTCP();
     delay(5000);
 
+    smartDelay(5 * 1000); // Initial smart delay to get time information
+    getGPSInfo(); // Get initial GPS data
+
     // int i;
     // SerialGPS.listen();
     // delay(3000);
@@ -100,30 +106,21 @@ void loop() {
 	  if(panicMode){
         panicHandling();
     }
-    if(!SerialGPS.isListening()){
-      SerialGPS.listen();
-      smartDelay(1000);
-      getGPSInfo();
-      Serial.print("Current Minute: ");
-      Serial.println(currentMinute);
-    }
-    // if(currentMinute != lastReport){
-    //   if((currentMinute > lastReport) && (currentMinute - lastReport >= reportInterval)){
-    //     lastReport = currentMinute;
-    //     sendLoc();
-    //   }
-    //   else if((currentMinute + 60) - lastReport >= reportInterval){
-    //     lastReport = currentMinute;
-    //     sendLoc();
-    //   }
-    // }
-    // getGPSInfo();
-    //
-    // delay(500);
+    if(!SerialGPS.isListening()) SerialGPS.listen();
 
-    // if(!SerialGPS.isListening()) SerialGPS.listen();
-    // smartDelay(10000);
-    // getGPSInfo();
+    smartDelay(1000);
+    getGPSInfo();
+
+    if(currentMinute != lastReport){
+      if((currentMinute > lastReport) && (currentMinute - lastReport >= reportInterval)){
+        lastReport = currentMinute;
+        sendLoc();
+      }
+      else if((currentMinute + 60) - lastReport >= reportInterval){
+        lastReport = currentMinute;
+        sendLoc();
+      }
+    }
 }
 
 // gets called when the panic button is pressed
